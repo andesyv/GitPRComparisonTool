@@ -49,6 +49,7 @@ else()
     target_include_directories(GitPRComp PUBLIC ${CMAKE_PREFIX_PATH}/cxxopts/include)
 
     # libgit2
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build Shared Library (OFF for Static)" FORCE)
     add_subdirectory(${CMAKE_PREFIX_PATH}/libgit2 EXCLUDE_FROM_ALL)
     target_include_directories(GitPRComp PUBLIC ${CMAKE_PREFIX_PATH}/libgit2/include)
     target_link_libraries(GitPRComp PUBLIC git2)
