@@ -2,10 +2,12 @@ cmake_minimum_required(VERSION 3.8)
 project(GitPRComp)
 
 set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/lib")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+
+file(GLOB GitPRCompSRC "src/*.cpp")
 
 # add_subdirectory(src)
-add_executable(GitPRComp src/main.cpp)
+add_executable(GitPRComp ${GitPRCompSRC})
 
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")

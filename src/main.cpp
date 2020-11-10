@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cxxopts.hpp>
+#include "cistring.h"
 
 int main(int argc, char *argv[]) {
     cxxopts::Options options("GitPRComp", "Git comparison tool for commit ranges");
@@ -15,9 +16,15 @@ int main(int argc, char *argv[]) {
       return 0;
     }
 
-    auto format = result["format"].as<std::string>();
+    auto format = gprc::ci_string{result["format"].as<std::string>()};
+    if (format == "html") {
 
-    
+    } else if (format == "pdf") {
+
+    } else {
+
+    }
+
 
     return 0;
 }
