@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cxxopts.hpp>
 #include "cistring.h"
+#include <git2.h>
 
 int main(int argc, char *argv[]) {
     cxxopts::Options options("GitPRComp", "Git comparison tool for commit ranges");
@@ -24,6 +25,10 @@ int main(int argc, char *argv[]) {
     } else {
 
     }
+
+    git_libgit2_init();
+
+    git_libgit2_shutdown();
 
 
     return 0;

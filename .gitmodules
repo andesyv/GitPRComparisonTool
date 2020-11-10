@@ -1,3 +1,6 @@
 [submodule "lib/cxxopts"]
 	path = lib/cxxopts
 	url = https://github.com/jarro2783/cxxopts
+[submodule "lib/libgit2"]
+	path = lib/libgit2
+	url = https://github.com/libgit2/libgit2
