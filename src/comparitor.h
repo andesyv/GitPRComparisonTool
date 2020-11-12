@@ -43,14 +43,12 @@ public:
         if (t1 && t2) {
             std::cout << "Comparison thingy!" << std::endl;
             std::cout << "Tree1:" << std::endl;
-            for (const auto& node : t1) {
-                std::cout << node.getNodePath() << std::endl;
-            }
-            // char cs[GIT_OID_HEXSZ + 1];
-            // std::string str{git_oid_tostr(cs, sizeof(cs), git_tree_id(t2.get()))};
-            // std::cout << str << std::endl;
-
-            
+            for (const auto& node : t1)
+                if (node.isObject())
+                    std::cout << node.getNodePath() << std::endl << node << std::endl;
+            // std::cout << "Tree2:" << std::endl;
+            // for (const auto& node : t2)
+            //     std::cout << node.getNodePath() << std::endl;
         }
 
         // // Create revision walker to iterate through repository
