@@ -1,32 +1,30 @@
 #ifndef COMPARITOR_H
 #define COMPARITOR_H
 
-#include <git2.h>
 #include <string>
 #include <string_view>
 #include <filesystem>
-#include <git2/revparse.h>
+extern "C" {
+    #include <git2.h>
+    #include <git2/pathspec.h>
+    // #include <git2/repository.h> // git_repository
+    // #include <git2/tree.h> // git_tree functions
+    // #include <git2/revparse.h>
+};
 #include <memory>
 #include <stdexcept>
+#include "gittreenode.h"
 
 // http://blog.davidecoppola.com/2016/10/how-to-traverse-git-repository-using-libgit2-and-cpp/
 // ^ For basic libgit usage
 
-
-// class GitTree {
-// public:
-//     GitTree(git_repository& repo, const char* rev) {
-//         git_object* obj{nullptr};
-//         git_revparse_single(&obj, &repo, rev);
-//         git_object_peel(&obj, obj, GIT_OBJECT_TREE);
-//     }
-// };
+namespace gprc {
 
 class Comparitor {
 private:
     std::filesystem::path repoPath;
     struct git_repo_deleter { void operator()(git_repository* ptr){ git_repository_free(ptr); }};
-    std::unique_ptr<git_repository, git_repo_deleter> repo;
+    std::shared_ptr<git_repository> repo;
 
 public:
     Comparitor(const std::filesystem::path& path = std::filesystem::current_path()) : repoPath{path} {
@@ -34,16 +32,24 @@ public:
         // Open repository into repository object
         git_repository* r{nullptr};
         if (!git_repository_open(&r, repoPath.string().c_str()))
-            repo.reset(r);
+            repo = std::shared_ptr<git_repository>{r, [](git_repository* ptr){ git_repository_free(ptr); }};
         else
             throw std::runtime_error{"Failed to find specified git repository!"};
     }
 
     void compare(const std::string_view& c1, const std::string_view& c2) {
-        auto t1{getTree(std::string{c1})}, t2{getTree(std::string{c2})};
+        auto t1{createTree(std::string{c1})}, t2{createTree(std::string{c2})};
 
         if (t1 && t2) {
             std::cout << "Comparison thingy!" << std::endl;
+            std::cout << "Tree1:" << std::endl;
+            for (const auto& node : t1) {
+                std::cout << node.getNodePath() << std::endl;
+            }
+            // char cs[GIT_OID_HEXSZ + 1];
+            // std::string str{git_oid_tostr(cs, sizeof(cs), git_tree_id(t2.get()))};
+            // std::cout << str << std::endl;
+
             
         }
 
@@ -71,16 +77,19 @@ public:
         // git_revwalk_free(walker);
     }
 
-    std::shared_ptr<git_tree> getTree(const std::string& rev) {
+    
+
+    GitTreeNode createTree(const std::string& rev) {
         git_object* obj{nullptr};
         git_tree* tree{nullptr};
         git_revparse_single(&obj, repo.get(), rev.c_str());
         git_object_peel(reinterpret_cast<git_object**>(&tree), obj, GIT_OBJECT_TREE);
         git_object_free(obj);
-        return {tree, [](git_tree* p){ git_tree_free(p); }};
+        return std::move(GitTreeNode{tree, repo, std::move(std::make_unique<std::filesystem::path>(repoPath))});
     }
 
     ~Comparitor() {}
 };
+}
 
 #endif // COMPARITOR_H

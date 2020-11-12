@@ -1,6 +1,9 @@
 #include <iostream>
 #include <cxxopts.hpp>
 #include "cistring.h"
+extern "C" {
+#include <git2/global.h> // Global libgit stuff
+};
 #include "comparitor.h"
 
 int main(int argc, char *argv[]) {
@@ -30,7 +33,7 @@ int main(int argc, char *argv[]) {
     git_libgit2_init();
 	// Make unique to handle cases where construction failes. If construction failes will instead return empty object and throw error.
 	try {
-		auto comparitor = std::make_unique<Comparitor>("C:/Users/andes/Documents/CppProjects/GitPRComparisonTool/");
+		auto comparitor = std::make_unique<gprc::Comparitor>("C:/Users/andes/Documents/CppProjects/GitPRComparisonTool/");
 		comparitor->compare("167b5e814b1fc5fbf2cf4a4a2a001ae52ed34654", "b7749efdaa61fdefd06806ff661102a844995cf9");
 	}
 	catch(std::runtime_error err) {
