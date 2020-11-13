@@ -52,9 +52,9 @@ public:
     std::filesystem::path repoPath() const { return mRepoPath; }
 
     void compare(const std::string_view& c1, const std::string_view& c2) {
-        auto t1{createTree(std::string{c1})}, t2{createTree(std::string{c2})};
+        // auto t1{createTree(std::string{c1})}, t2{createTree(std::string{c2})};
 
-        if (t1 && t2) {
+        // if (t1 && t2) {
             std::cout << "Comparison thingy!" << std::endl;
             // std::cout << "Tree1:" << std::endl;
             // for (const auto& node : t1)
@@ -101,22 +101,26 @@ public:
                 return 0;
             };
 
-            // auto diffs = GitTreeNode::diffs(t1, t2);
-            // for (auto& diff : diffs)
-            // std::set<std::shared_ptr<git_tree>> diffedTrees;
-            // for (auto i1{t1.begin()}, i2{t2.begin()}; i1 != t1.end() && i2 != t2.end(); ++i1, ++i2) {
-            //     if (diffedTrees.contains((*i1).mTreeObj) && diffedTrees.contains((*i2).mTreeObj))
-            //         continue;
-                
-            //     auto diff = (*i1).diff(*i2);
-            //     diffedTrees.insert((*i1).mTreeObj);
-            //     diffedTrees.insert((*i2).mTreeObj);
+            auto makeTree = [&](const std::string& rev) {
+                git_object* obj{nullptr};
+                git_tree* tree{nullptr};
+                git_revparse_single(&obj, repo.get(), rev.c_str());
+                git_object_peel(reinterpret_cast<git_object**>(&tree), obj, GIT_OBJECT_TREE);
+                git_object_free(obj);
+                return std::shared_ptr<git_tree>{tree, [](git_tree* t){ git_tree_free(t); }};
+            };
+            auto getDiff = [&](const std::shared_ptr<git_tree>& t1, const std::shared_ptr<git_tree>& t2) {
+                git_diff* d{nullptr};
+                if (auto err = git_diff_tree_to_tree(&d, repo.get(), t1.get(), t2.get(), NULL))
+                    throw std::runtime_error{std::string{"Git diff failed with error code: "}.append(std::to_string(err))};
+                return std::shared_ptr<git_diff>{d, [](git_diff* p){ git_diff_free(p); }};
+            };
 
-            //     if (auto err = git_diff_foreach(diff.get(), file_cb, binary_cb, hunk_cb, line_cb, this))
-            //         throw std::runtime_error{std::string{"git_diff_foreach failed with error: "}.append(std::to_string(err))};
-            // }
+
+
             lineChanges.clear();
-            auto diff = t1 / t2;
+            auto t1{makeTree(std::string{c1})}, t2{makeTree(std::string{c2})};
+            auto diff = getDiff(t1, t2);
             if (auto err = git_diff_foreach(diff.get(), file_cb, binary_cb, hunk_cb, line_cb, this))
                 throw std::runtime_error{std::string{"git_diff_foreach failed with error: "}.append(std::to_string(err))};
 
@@ -144,28 +148,9 @@ public:
 
                 out << "<img src=\"" << filename << "\" alt=\"Symbol changes of diff\">" << std::endl;
             }
-            // std::vector<std::vector<double>> Y = {
-            // {1, 3, 1, 2}, {5, 2, 5, 6}, {3, 7, 3, 1}};
-
-            // auto f = matplot::gcf();
-            // f->width(f->width() * 2);
-
-            // matplot::subplot(1, 2, 0);
-            // matplot::area(Y, -4.);
-            // matplot::title("Stacked");
-
-            // matplot::subplot(1, 2, 1);
-            // matplot::area(Y, -4, false);
-            // matplot::title("Not stacked");
-            
-            // // matplot::save("plot.svg");
-
-            // std::cout << "Tree2:" << std::endl;
-            // for (const auto& node : t2)
-            //     std::cout << node.getNodePath() << std::endl;
 
             out << "</div></div></body></html>";
-        }
+        // }
     }
    
 
