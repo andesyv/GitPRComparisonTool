@@ -7,13 +7,12 @@
 extern "C" {
     #include <git2.h>
     #include <git2/pathspec.h>
-    // #include <git2/repository.h> // git_repository
-    // #include <git2/tree.h> // git_tree functions
-    // #include <git2/revparse.h>
 };
 #include <memory>
 #include <stdexcept>
 #include "gittreenode.h"
+#include <fstream>
+#include <set>
 
 // http://blog.davidecoppola.com/2016/10/how-to-traverse-git-repository-using-libgit2-and-cpp/
 // ^ For basic libgit usage
@@ -22,60 +21,92 @@ namespace gprc {
 
 class Comparitor {
 private:
-    std::filesystem::path repoPath;
+    std::filesystem::path mRepoPath;
     struct git_repo_deleter { void operator()(git_repository* ptr){ git_repository_free(ptr); }};
     std::shared_ptr<git_repository> repo;
 
 public:
-    Comparitor(const std::filesystem::path& path = std::filesystem::current_path()) : repoPath{path} {
+    Comparitor(const std::filesystem::path& path = std::filesystem::current_path()) : mRepoPath{path} {
         // https://github.com/libgit2/libgit2/blob/master/tests/diff/tree.c
         // Open repository into repository object
         git_repository* r{nullptr};
-        if (!git_repository_open(&r, repoPath.string().c_str()))
+        if (!git_repository_open(&r, mRepoPath.string().c_str()))
             repo = std::shared_ptr<git_repository>{r, [](git_repository* ptr){ git_repository_free(ptr); }};
         else
             throw std::runtime_error{"Failed to find specified git repository!"};
     }
+
+    std::ofstream out;
+
+    void setOutput(const std::filesystem::path& file) {
+        out.open(file, std::ofstream::trunc);
+    }
+
+    std::filesystem::path repoPath() const { return mRepoPath; }
 
     void compare(const std::string_view& c1, const std::string_view& c2) {
         auto t1{createTree(std::string{c1})}, t2{createTree(std::string{c2})};
 
         if (t1 && t2) {
             std::cout << "Comparison thingy!" << std::endl;
-            std::cout << "Tree1:" << std::endl;
-            for (const auto& node : t1)
-                if (node.isObject())
-                    std::cout << node.getNodePath() << std::endl << node << std::endl;
+            // std::cout << "Tree1:" << std::endl;
+            // for (const auto& node : t1)
+            //     if (node.isObject())
+            //         std::cout << node.getNodePath() << std::endl << node << std::endl;
+            out << "<html><body><pre>" << std::endl;
+            auto file_cb = [](const git_diff_delta* delta, float progress, void* payload){
+                auto& owner = *reinterpret_cast<Comparitor*>(payload);
+                owner.out << delta->new_file.path << ": " << std::endl;
+                return 0;
+            };
+            auto binary_cb = [](const git_diff_delta* delta, const git_diff_binary* binary, void* payload) {
+                // std::cout << "binary_cb!: " << std::endl;
+                return 0;
+            };
+            auto hunk_cb = [](const git_diff_delta* delta, const git_diff_hunk* hunk, void* payload) {
+                // std::cout << "hunk_cb!: " << std::endl;
+                return 0;
+            };
+            auto line_cb = [](const git_diff_delta* delta, const git_diff_hunk* hunk, const git_diff_line* line, void* payload) {
+                // std::cout << "line_cb!: " << std::endl;
+                auto& owner = *reinterpret_cast<Comparitor*>(payload);
+                if (line->new_lineno < 0)
+                    owner.out << "<span style=\"color:red;\">";
+                else if (line->old_lineno < 0)
+                    owner.out << "<span style=\"color:green;\">";
+                else
+                    owner.out << "<span>";
+                
+                owner.out << line->old_lineno << "|" << line->new_lineno << ": " << std::string{line->content, line->content_len} << "</span>";
+                return 0;
+            };
+
+            auto diffs = GitTreeNode::diffs(t1, t2);
+            // for (auto& diff : diffs)
+            // std::set<std::shared_ptr<git_tree>> diffedTrees;
+            // for (auto i1{t1.begin()}, i2{t2.begin()}; i1 != t1.end() && i2 != t2.end(); ++i1, ++i2) {
+            //     if (diffedTrees.contains((*i1).mTreeObj) && diffedTrees.contains((*i2).mTreeObj))
+            //         continue;
+                
+            //     auto diff = (*i1).diff(*i2);
+            //     diffedTrees.insert((*i1).mTreeObj);
+            //     diffedTrees.insert((*i2).mTreeObj);
+
+            //     if (auto err = git_diff_foreach(diff.get(), file_cb, binary_cb, hunk_cb, line_cb, this))
+            //         throw std::runtime_error{std::string{"git_diff_foreach failed with error: "}.append(std::to_string(err))};
+            // }
+            auto diff = t1 / t2;
+            if (auto err = git_diff_foreach(diff.get(), file_cb, binary_cb, hunk_cb, line_cb, this))
+                throw std::runtime_error{std::string{"git_diff_foreach failed with error: "}.append(std::to_string(err))};
+
             // std::cout << "Tree2:" << std::endl;
             // for (const auto& node : t2)
             //     std::cout << node.getNodePath() << std::endl;
+
+            out << "</pre></body></html>";
         }
-
-        // // Create revision walker to iterate through repository
-        // git_revwalk * walker = nullptr;
-        // git_revwalk_new(&walker, repo.get());
-
-        // // iteration rules
-        // git_revwalk_sorting(walker, GIT_SORT_NONE);
-
-        // git_revwalk_push_head(walker);
-
-        // git_oid oid;
-
-        // // while(!git_revwalk_next(&oid, walker))
-        // // {
-        // //     git_commit * commit = nullptr;
-        // //     git_commit_lookup(&commit, repo.get(), &oid);
-
-        // //     std::cout << git_oid_tostr_s(&oid) << " " << git_commit_summary(commit) << std::endl;
-
-        // //     git_commit_free(commit);
-        // // }
-
-        // git_revwalk_free(walker);
     }
-
-    
+   
 
     GitTreeNode createTree(const std::string& rev) {
         git_object* obj{nullptr};
@@ -83,7 +114,7 @@ public:
         git_revparse_single(&obj, repo.get(), rev.c_str());
         git_object_peel(reinterpret_cast<git_object**>(&tree), obj, GIT_OBJECT_TREE);
         git_object_free(obj);
-        return std::move(GitTreeNode{tree, repo, std::move(std::make_unique<std::filesystem::path>(repoPath))});
+        return std::move(GitTreeNode{tree, repo, std::move(std::make_unique<std::filesystem::path>(mRepoPath))});
     }
 
     ~Comparitor() {}
