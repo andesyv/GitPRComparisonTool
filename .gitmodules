@@ -4,3 +4,6 @@
 [submodule "lib/libgit2"]
 	path = lib/libgit2
 	url = https://github.com/libgit2/libgit2
+[submodule "lib/matplot"]
+	path = lib/matplot
+	url = git@github.com:alandefreitas/matplotplusplus.git

@@ -36,6 +36,11 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
                                 WORKING_DIRECTORY ${CMAKE_PREFIX_PATH}/libgit2
                                 RESULT_VARIABLE GIT_SUBMOD_RESULT)
             endif()
+            # if(NOT GIT_SUBMOD_RESULT EQUAL "0" AND NOT ${Matplot++_FOUND})
+            #     execute_process(COMMAND ${GIT_EXECUTABLE} checkout v1.1.1
+            #         WORKING_DIRECTORY ${CMAKE_PREFIX_PATH}/matplot
+            #         RESULT_VARIABLE GIT_SUBMOD_RESULT)
+            # endif()
         endif()
     endif()
 endif()
@@ -53,5 +58,17 @@ else()
     add_subdirectory(${CMAKE_PREFIX_PATH}/libgit2 EXCLUDE_FROM_ALL)
     target_include_directories(GitPRComp PUBLIC ${CMAKE_PREFIX_PATH}/libgit2/include)
     target_link_libraries(GitPRComp PUBLIC git2)
+
+
+    # Matplot++
+    set(BUILD_EXAMPLES OFF CACHE BOOL "Build examples")
+    set(BUILD_TESTS OFF CACHE BOOL "Build tests")
+    find_package(Matplot++ QUIET)
+    if (NOT ${Matplot++_FOUND})
+        message(STATUS "Matplot++ not found, manually linking using submodule instead.")
+        add_subdirectory(${CMAKE_PREFIX_PATH}/matplot)
+    endif()
+    # target_include_directories(GitPRComp PUBLIC ${CMAKE_PREFIX_PATH}/matplot)
+    target_link_libraries(GitPRComp PUBLIC matplot)
 
 endif()
